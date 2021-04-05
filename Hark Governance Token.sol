@@ -106,9 +106,8 @@ contract HarkGovernanceToken is StandardToken {
         name = string(abi.encodePacked(_name, " Hark Governance"));
         symbol = string(abi.encodePacked(_symbolAppdx, "-HARK"));
 
-        owner = _owner;                                  // creator gets the token
-        totalSupply = 1000000000000;                     // Update total supply
-        balances[_owner] = 1000000000000;                // Give the creator no initial tokens
+        owner = _owner;                                    // creator is the owner
+        //balances[_owner] = 1000000000000;                // Give the creator no initial tokens
     }
     
     modifier ownerOnly {
@@ -145,16 +144,15 @@ contract HarkGovernanceToken is StandardToken {
         require(msg.value > 10 ** 16);
         uint256 tokenAmount = msg.value / (10 ** 16);
         
-        bool balanceAllowed = balances[owner] >= tokenAmount && balances[owner] > 0;
-        
-        require(balanceAllowed);
-        if (balanceAllowed) {
-            // transfers token to the purchaser
-            balances[msg.sender] += tokenAmount;
-            balances[owner] -= tokenAmount;
-            emit Transfer(owner, msg.sender, tokenAmount);
-            return true;
-        } else { return false; }
+        //bool balanceAllowed = balances[owner] >= tokenAmount && balances[owner] > 0;
+        //require(balanceAllowed);
+    
+        // transfers token to the purchaser
+        balances[msg.sender] += tokenAmount;
+        balances[owner] -= tokenAmount;
+        //emit Transfer(owner, msg.sender, tokenAmount);
+        //emit Transfer(null, msg.sender, tokenAmount);
+        return true;
     }
     
     // used by the owner to withdraw all of the tfuel in the contract

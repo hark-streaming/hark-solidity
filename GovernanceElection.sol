@@ -49,7 +49,8 @@ contract GovernanceElection {
     // election info
     Election[] public elections;
 
-    constructor(uint8 _options, HarkGovernanceToken _token) {
+    constructor(HarkGovernanceToken _token) {
+        require(_token.owner() == msg.sender);
         token = _token;
         owner = msg.sender;
     }
