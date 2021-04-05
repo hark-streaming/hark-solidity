@@ -52,7 +52,7 @@ contract GovernanceElection {
     constructor(HarkGovernanceToken _token) {
         require(_token.owner() == msg.sender);
         token = _token;
-        owner = msg.sender;
+        owner = _token.owner();
     }
     
     modifier onlyOwner() {
