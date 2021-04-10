@@ -1,6 +1,11 @@
 {
+  "scripts": {
+    "build": "npx truffle compile",
+    "test": "node src"
+  },
   "dependencies": {
-    "@openzeppelin/contracts": "^4.0.0"
+    "@openzeppelin/contracts": "^4.0.0",
+    "@thetalabs/theta-js": "^0.0.46"
   },
   "devDependencies": {
     "truffle": "^5.3.1"
