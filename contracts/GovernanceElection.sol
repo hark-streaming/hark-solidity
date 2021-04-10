@@ -1,3 +1,4 @@
+/*
 pragma solidity ^0.8.3;
 
 import "./HarkGovernanceToken.sol";
@@ -144,3 +145,4 @@ contract GovernanceElection {
     //#endregion
     
 }
+*/
