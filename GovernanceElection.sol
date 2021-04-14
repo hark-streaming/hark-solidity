@@ -1,146 +1,89 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.8.3;
 
-import "./HarkGovernanceToken.sol";
+import "github.com/OpenZeppelin/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
 
-contract GovernanceElection {
-    
-    //#region --- STRUCTS ---
-    
-    // represents a user's vote
-    struct RegisteredVote {
-        // whether or not the user has voted
-        bool hasVoted;
-        
-        // the option that the user voted for
-        uint8 option;
-        
-        // the number of tokens that the user voted with at time of voting
-        uint32 tokenVote;
-    }
-    
-    // represents an election for the body
-    struct Election {
-        // number of vote options
-        uint8 options;
-        
-        // total number of votes in each category (and thus voters) in this election
-        uint24[] votes;
-        
-        // the number of token votes in each category
-        uint32[] votesToken;
-        
-        // the end of the election
-        uint deadline;
-        
-        // the people who have voted
-        mapping(address => RegisteredVote) voteRegister;
-    }
-    
-    //#endregion
-    
-    
-    
+/**
+ * @dev A token contract that implements ERC20, and is "owned"/managed by one party.
+ * 
+ * Custom tokens for organizations on the Hark platform.
+ */
+contract HarkGovernanceToken is ERC20 {
+
     //#region --- DATA, MODIFIERS, CONSTRUCTOR ---
     
-    // governing entity info
-    address public owner;
-    HarkGovernanceToken public token;
+    // required for donating
+    address public _owner = address(0x0);
 
-    // election info
-    Election[] public elections;
-
-    constructor(HarkGovernanceToken _token) {
-        require(_token.owner() == msg.sender);
-        token = _token;
-        owner = _token.owner();
+    // creates the hark governance token
+    constructor(string memory name, string memory symbolAppdx, address owner/*, HarkPlatformToken _platform*/) 
+        ERC20(string(abi.encodePacked(name, " Hark Governance")), string(abi.encodePacked(symbolAppdx, "-HARK"))) {
+        _owner = owner;
     }
     
-    modifier onlyOwner() {
-        require(msg.sender == owner);
+    // only going int here. 1 Tfuel = 100 Tokens
+    function decimals() public view override returns(uint8) { return 0; }
+    
+    // functions that are just for the owner of the organization.
+    modifier onlyOwner {
+        require(msg.sender == _owner);
         _;
     }
     
-    //#endregion
-    
-    
-    
-    //#region --- GETTERS ---
-    
-    // returns the number of elections published so far
-    function getElectionCount() public view returns(uint) { return elections.length; }
-    
-    // returns true if election has ended, false if not
-    function electionHasEnded(uint _electId) public view returns(bool) { return elections[_electId].deadline < now; }
-    
-    // returns the number of options based on the election
-    function getOptions(uint _electId) public view returns(uint8) {
-        require(_electId < getElectionCount());
-        return elections[_electId].options;
-    }
-    
-    // gets the number of voters per option
-    function getVotes(uint _electId) public view returns(uint24[] memory) {
-        require(_electId < getElectionCount());
-        return elections[_electId].votes;
-    }
-    
-    // gets the number of tokens allocated per option
-    function getVotesToken(uint _electId) public view returns(uint32[] memory) {
-        require(_electId < getElectionCount());
-        return elections[_electId].votesToken;
-    }
-    
-    // gets relevant election data of a specific election
-    function getElection(uint _electId) public view returns(uint8 options, uint24[] memory votes, uint32[] memory votesToken, uint deadline) {
-        options = elections[_electId].options;
-        votes = elections[_electId].votes;
-        votesToken = elections[_electId].votesToken;
-        deadline = elections[_electId].deadline;
-    }
     
     //#endregion
     
     
     
-    //#region --- SETTERS ---
-    
+    //#region -- FUNCTIONALITY
+
     // throws back tfuel if someone tries to directly send it here
-    function () public { revert("Contract doesn't take gas directly."); }
+    fallback () external { revert("Contract doesn't take gas directly."); }
+
+    /*
+    // approves and then calls the receiving contract
+    function approveAndCall(address _spender, uint256 _value, bytes calldata _extraData) public returns (bool success) {
+        approve(_spender, _value);
+        emit Approval(msg.sender, _spender, _value);
+
+        //call the receiveApproval function on the contract you want to be notified. This crafts the function signature manually so one doesn't have to include a contract in here just for this.
+        //receiveApproval(address _from, uint256 _value, address _tokenContract, bytes _extraData)
+        //it is assumed that when does this that the call *should* succeed, otherwise one would use vanilla approve instead.
+        if(!_spender.call(bytes4(bytes32(sha3("receiveApproval(address,uint256,address,bytes)"))), msg.sender, _value, this, _extraData)) { revert(); }
+        return true;
+    }
+    */
     
-    // adds or changes a user's vote in a specific election
-    function vote(uint8 _option, uint _electId) public {
-        require(_electId < getElectionCount(), "Bad election ID.");
-        require(0 <= _option && _option < elections[_electId].options, "Bad vote option.");
-        require(!electionHasEnded(_electId), "Election has ended.");
-
-        // retrieves the token amount of the voter
-        uint32 voterTokens = uint32(token.balanceOf(msg.sender));
+    // normal method of sending tfuel is through the sdk
+    // other method of sending tfuel is through a function here, which gives the user tfuel
+    function purchaseTokens() public payable returns(bool success) {
         
-        // changes if the user has already voted
-        if(elections[_electId].voteRegister[msg.sender].hasVoted) {
-            // removes previous vote values
-            uint8 previousOption = elections[_electId].options;
-            elections[_electId].votes[previousOption] -= 1;
-            elections[_electId].votesToken[previousOption] -= elections[_electId].voteRegister[msg.sender].tokenVote;
-        }
-        
-        // adds voter record
-        elections[_electId].voteRegister[msg.sender] = RegisteredVote(true, _option, voterTokens);
-
-        // adds to total sum
-        elections[_electId].votes[_option] += 1;
-        elections[_electId].votesToken[_option] += voterTokens;
+        require(msg.value > 10 ** 16);
+        uint256 tokenAmount = msg.value / (10 ** 16);
+    
+        // transfers token to the purchaser
+        _mint(msg.sender, tokenAmount);
+        return true;
     }
     
-    // creates a new election & returns its id
-    function createVote(uint8 _optionCount, uint _deadline) onlyOwner public returns(uint) {
-        elections.push(Election(_optionCount, new uint24[](_optionCount), new uint32[](_optionCount), _deadline));
-        return getElectionCount() - 1;
+    // used by the owner to withdraw all of the tfuel in the contract
+    function withdraw() public onlyOwner returns(bool success) {
+        payable(_owner).transfer(address(this).balance);
+        return true;
+    }
+    
+    /**
+    * @dev Allows the current owner to transfer control of the contract to a newOwner.
+    * @param newOwner The address to transfer ownership to.
+    */
+    function transferOwnership(address newOwner) public onlyOwner {
+        require(newOwner != address(0));
+        _owner = newOwner;
     }
     
     // kills the contract to free up space
-    function kill() onlyOwner public { selfdestruct(owner); }
+    function kill() onlyOwner public { 
+        selfdestruct(payable(_owner)); 
+    }
     
     //#endregion
-    
 }
