@@ -11,6 +11,11 @@ contract HarkGovernanceToken is ERC20 {
 
     //#region --- DATA, MODIFIERS, CONSTRUCTOR ---
     
+    // token vanities
+    //string public name = "Default Hark Governance";
+    //uint8 public decimals = 0;
+    //string public symbol = "NULL-HARK";
+    
     // required for donating
     address public _owner = address(0x0);
 
