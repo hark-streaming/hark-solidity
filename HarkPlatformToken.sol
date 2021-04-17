@@ -1,5 +1,5 @@
+//SPDX-License-Identifier: Attribution Assurance License
 pragma solidity ^0.8.3;
-
 import "github.com/OpenZeppelin/openzeppelin-contracts/contracts/token/ERC20/extensions/ERC20Pausable.sol";
 import "github.com/OpenZeppelin/openzeppelin-contracts/contracts/governance/TimelockController.sol";
 import "github.com/OpenZeppelin/openzeppelin-contracts/contracts/access/Ownable.sol";
@@ -14,74 +14,70 @@ contract HarkPlatformToken is Ownable, ERC20Pausable {
     
     //#region --- DATA, MODIFIERS, CONSTRUCTOR ---
 
-    
-    // creator of the token
-    // platform tax
-    int16 public tax; // 100% = 10,000
-    
-    // the minimum minted required to be eligible for a vote
-    uint16 public minimumSupplyForNomination;
-    
-    // election info
-    uint numElections;
-    mapping(uint => Election) public elections;
-    
-    // voting
-    uint32 electionNum = 0; // current election
+    uint16 public tax;                             // platform tax (100% = 10,000)
+    uint16 public minimumSupplyForNomination;      // the minimum minted HarkGovernanceTokens for it to be eligible for a vote
+    uint32 internal numElections = 0;              // current election count
+    mapping(uint => Election) public elections;    // where elections are stored
 
-    constructor(int16 _tax) ERC20("Hark Platform Token", "HARK") {
+    /**
+     * Creates a new (HARK) HarkPlatformToken.
+     * _tax - the starting tax rate (100% = 10,000).
+     */
+    constructor(uint16 _tax) ERC20("Hark Platform Token", "HARK") {
         tax = _tax;
         minimumSupplyForNomination = 5000;
+        _mint(msg.sender, 1000000000);
     }
-    
-    // governing entity info
-    HarkGovernanceToken public token;
-
     
     //#endregion
     
-
-
+    
+    
     //#region --- STRUCTS ---
     
     // represents a user's vote
     struct RegisteredVote {
-        // whether or not the user has voted
-        bool hasVoted;
-        
-        // the option that the user voted for
-        HarkGovernanceToken option;
-        
-        // the number of tokens that the user voted with at time of voting
-        uint32 tokenVote;
+        bool hasVoted;                 // whether or not the user has voted
+        HarkGovernanceToken option;    // the governance token that the user voted for
+        uint32 tokenVote;              // the number of tokens that the user voted with at time of voting
     }
     
     // represents a candidate
     struct Candidate {
-        bool candidateHasBeenAdded;
-        HarkGovernanceToken nominee;
-        uint64 tokenVote;
+        bool candidateHasBeenAdded;      // true if this is a proper candidate
+        HarkGovernanceToken nominee;     // the hark governance token
+        uint64 tokenVote;                // how many tokens have been dedicated
     }
     
     // represents an election for the body
     struct Election {
-        // number of vote options
-        uint32 nomineeCount;
-        mapping(uint32 => Candidate) nominees;
-        mapping(HarkGovernanceToken => uint32) ids;
-
-        // the end of the election
-        uint deadline;
-        
-        // the people who have voted
-        mapping(address => RegisteredVote) voteRegister;
-        
-        // if winnings have been finished
-        bool winningsDisbursed;
+        uint32 nomineeCount;                                // number of vote options
+        mapping(uint32 => Candidate) nominees;              // list of this elections' nominees
+        mapping(HarkGovernanceToken => uint32) ids;         // the ids of the tokens
+        uint deadline;                                      // the end of the election
+        mapping(address => RegisteredVote) voteRegister;    // the people who have voted
+        bool winningsDisbursed;                             // if winnings have already been disbursed
     }
     
     //#endregion
     
+
+    
+    //#region --- SETTERS ---
+    
+    // sets the tax rate
+    function setTax(uint16 _tax) public onlyOwner {
+        require(tax <= 10000);
+        tax = _tax;
+    }
+    
+    // sets the minimum governance coins generated to be eligible for a vote
+    function setMinimumSupplyForNomination(uint16 _minimum) public onlyOwner {
+        minimumSupplyForNomination = _minimum;
+    }
+    
+    //#endregion
+
     
     
     //#region --- GETTERS ---
@@ -123,7 +119,7 @@ contract HarkPlatformToken is Ownable, ERC20Pausable {
         require(!electionHasEnded(_electId), "Election has ended.");
 
         // retrieves the token amount of the voter
-        uint32 voterTokens = uint32(token.balanceOf(msg.sender));
+        uint32 voterTokens = uint32(balanceOf(msg.sender));
         
         // changes if the user has already voted
         if(elections[_electId].voteRegister[msg.sender].hasVoted) {
