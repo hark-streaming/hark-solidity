@@ -1,7 +1,7 @@
+//SPDX-License-Identifier: Attribution Assurance License
 pragma solidity ^0.8.3;
-
 import "github.com/OpenZeppelin/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
-//import "github.com/OpenZeppelin/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol;
+import "./utils/PaymentSplitter.sol";
 import "./HarkPlatformToken.sol";
 
 /**
@@ -9,27 +9,27 @@ import "./HarkPlatformToken.sol";
  * 
  * Custom tokens for organizations on the Hark platform.
  */
-contract HarkGovernanceToken is ERC20 {
+contract HarkGovernanceToken is ERC20, PaymentSplitter {
 
     //#region --- DATA, MODIFIERS, CONSTRUCTOR ---
-    // token vanities
-    //string public name = "Default Hark Governance";
-    //uint8 public decimals = 0;
-    //string public symbol = "NULL-HARK";
     
     // required for donating
     address public _owner = address(0x0);
     HarkPlatformToken internal _platform;
 
     // creates the hark governance token
-    constructor(string memory name, string memory symbolAppdx, address owner, HarkPlatformToken platform) 
-        ERC20(string(abi.encodePacked(name, " Hark Governance")), string(abi.encodePacked(symbolAppdx, "-HARK"))) {
-        _owner = owner;
+    constructor(string memory name, string memory symbolAppdx, address ownerAddress, HarkPlatformToken platform) 
+        ERC20(string(abi.encodePacked(name, " Hark Governance")), string(abi.encodePacked(symbolAppdx, "-HARK")))
+        PaymentSplitter(new address[](0), new uint256[](0))
+    {
+        _owner = ownerAddress;
         _platform = platform;
+        
+        _addPayee(ownerAddress, 1000);
     }
     
     // only going int here. 1 Tfuel = 100 Tokens
-    function decimals() public view override returns(uint8) { return 0; }
+    function decimals() public pure override returns(uint8) { return 0; }
     
     // functions that are just for the owner of the organization.
     modifier onlyOwner {
@@ -37,16 +37,23 @@ contract HarkGovernanceToken is ERC20 {
         _;
     }
     
-    
     //#endregion
     
     
+    //#region --- DONATING ---
     
-    //#region -- FUNCTIONALITY
-
-    // throws back tfuel if someone tries to directly send it here
-    fallback() external payable { 
-        if(msg.sender != address(_platform)) revert("Contract doesn't take gas directly.");
+    // adds shares an address
+    function editShares(address[] memory payees, uint256[] memory shares_) public onlyOwner {
+        require(payees.length == shares_.length, "PaymentSplitter: payees and shares length mismatch");
+        require(payees.length > 0, "PaymentSplitter: no payees");
+        
+        // nullfies everything to 0
+        releaseAllAndReset();
+        
+        // reconstructs
+        for (uint256 i = 0; i < payees.length; i++) {
+            _addPayee(payees[i], shares_[i]);
+        }
     }
     
     // normal method of sending tfuel is through the sdk
@@ -61,12 +68,13 @@ contract HarkGovernanceToken is ERC20 {
         return true;
     }
     
-    // used by the owner to withdraw all of the tfuel in the contract
-    function withdraw() public onlyOwner returns(bool success) {
-        payable(_owner).transfer(address(this).balance);
-        return true;
-    }
+    //#endregion
+
+
     
+    //#region --- OWNERSHIP ---
+    
+    // the owner of the token's organization
     function owner() public view returns(address) {
         return _owner;
     }
