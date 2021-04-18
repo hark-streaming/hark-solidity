@@ -25,7 +25,10 @@ contract HarkGovernanceToken is ERC20, PaymentSplitter {
         _owner = ownerAddress;
         _platform = platform;
         
-        _addPayee(ownerAddress, 1000);
+        // adds current platform tax
+        uint16 _tax = _platform.tax();
+        _addPayee(address(_platform), _tax);
+        _addPayee(ownerAddress, 10000 - _tax);
     }
     
     // only going int here. 1 Tfuel = 100 Tokens
@@ -50,7 +53,18 @@ contract HarkGovernanceToken is ERC20, PaymentSplitter {
         // nullfies everything to 0
         releaseAllAndReset();
         
-        // reconstructs
+        // adds back the platform taxation
+        uint256 totalShares = 0;
+        for(uint256 i = 0; i < payees.length; i++) {
+            totalShares += shares_[i];
+        }
+        uint256 _tax = _platform.tax();
+
+        // applies platform tax
+        require(totalShares + _tax == 10000, "The total shares must be equal to 10,000.");
+        _addPayee(address(_platform), _tax);
+        
+        // adds all of the payees
         for (uint256 i = 0; i < payees.length; i++) {
             _addPayee(payees[i], shares_[i]);
         }
