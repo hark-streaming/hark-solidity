@@ -76,6 +76,14 @@ contract HarkPlatformToken is Ownable, ERC20Pausable {
         minimumSupplyForNomination = _minimum;
     }
     
+    // sets transactions paused or not paused
+    function setTransactionPause(bool _paused) public onlyOwner returns(bool) {
+        if(paused() && !_paused) _unpause();
+        else if (!paused() && _paused) _pause();
+        
+        return paused();
+    }
+    
     //#endregion
 
     
