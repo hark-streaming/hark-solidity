@@ -1,8 +1,10 @@
-pragma solidity ^0.4.24;
+//SPDX-License-Identifier: Attribution Assurance License
+pragma solidity ^0.8.3;
 
 import "./HarkGovernanceToken.sol";
+import "github.com/OpenZeppelin/openzeppelin-contracts/contracts/access/Ownable.sol";
 
-contract GovernanceElection {
+contract GovernanceElection is Ownable {
     
     //#region --- STRUCTS ---
     
@@ -43,21 +45,15 @@ contract GovernanceElection {
     //#region --- DATA, MODIFIERS, CONSTRUCTOR ---
     
     // governing entity info
-    address public owner;
     HarkGovernanceToken public token;
 
     // election info
-    Election[] public elections;
+    uint32 numElections;
+    mapping(uint32 => Election) public elections;
 
     constructor(HarkGovernanceToken _token) {
         require(_token.owner() == msg.sender);
         token = _token;
-        owner = _token.owner();
-    }
-    
-    modifier onlyOwner() {
-        require(msg.sender == owner);
-        _;
     }
     
     //#endregion
@@ -67,31 +63,31 @@ contract GovernanceElection {
     //#region --- GETTERS ---
     
     // returns the number of elections published so far
-    function getElectionCount() public view returns(uint) { return elections.length; }
+    function getElectionCount() public view returns(uint32) { return numElections; }
     
     // returns true if election has ended, false if not
-    function electionHasEnded(uint _electId) public view returns(bool) { return elections[_electId].deadline < now; }
+    function electionHasEnded(uint32 _electId) public view returns(bool) { return elections[_electId].deadline < block.timestamp; }
     
     // returns the number of options based on the election
-    function getOptions(uint _electId) public view returns(uint8) {
+    function getOptions(uint32 _electId) public view returns(uint8) {
         require(_electId < getElectionCount());
         return elections[_electId].options;
     }
     
     // gets the number of voters per option
-    function getVotes(uint _electId) public view returns(uint24[] memory) {
+    function getVotes(uint32 _electId) public view returns(uint24[] memory) {
         require(_electId < getElectionCount());
         return elections[_electId].votes;
     }
     
     // gets the number of tokens allocated per option
-    function getVotesToken(uint _electId) public view returns(uint32[] memory) {
+    function getVotesToken(uint32 _electId) public view returns(uint32[] memory) {
         require(_electId < getElectionCount());
         return elections[_electId].votesToken;
     }
     
     // gets relevant election data of a specific election
-    function getElection(uint _electId) public view returns(uint8 options, uint24[] memory votes, uint32[] memory votesToken, uint deadline) {
+    function getElection(uint32 _electId) public view returns(uint8 options, uint24[] memory votes, uint32[] memory votesToken, uint deadline) {
         options = elections[_electId].options;
         votes = elections[_electId].votes;
         votesToken = elections[_electId].votesToken;
@@ -105,10 +101,10 @@ contract GovernanceElection {
     //#region --- SETTERS ---
     
     // throws back tfuel if someone tries to directly send it here
-    function () public { revert("Contract doesn't take gas directly."); }
+    fallback () external { revert("Contract doesn't take gas directly."); }
     
     // adds or changes a user's vote in a specific election
-    function vote(uint8 _option, uint _electId) public {
+    function vote(uint8 _option, uint32 _electId) public {
         require(_electId < getElectionCount(), "Bad election ID.");
         require(0 <= _option && _option < elections[_electId].options, "Bad vote option.");
         require(!electionHasEnded(_electId), "Election has ended.");
@@ -119,7 +115,7 @@ contract GovernanceElection {
         // changes if the user has already voted
         if(elections[_electId].voteRegister[msg.sender].hasVoted) {
             // removes previous vote values
-            uint8 previousOption = elections[_electId].options;
+            uint8 previousOption = elections[_electId].voteRegister[msg.sender].option;
             elections[_electId].votes[previousOption] -= 1;
             elections[_electId].votesToken[previousOption] -= elections[_electId].voteRegister[msg.sender].tokenVote;
         }
@@ -133,13 +129,16 @@ contract GovernanceElection {
     }
     
     // creates a new election & returns its id
-    function createVote(uint8 _optionCount, uint _deadline) onlyOwner public returns(uint) {
-        elections.push(Election(_optionCount, new uint24[](_optionCount), new uint32[](_optionCount), _deadline));
+    function createElection(uint8 _optionCount, uint _deadline) onlyOwner public returns(uint) {
+        elections[getElectionCount()].options = _optionCount;
+        elections[getElectionCount()].votes = new uint24[](_optionCount);
+        elections[getElectionCount()].votesToken = new uint32[](_optionCount);
+        elections[getElectionCount()].deadline = _deadline;
         return getElectionCount() - 1;
     }
     
     // kills the contract to free up space
-    function kill() onlyOwner public { selfdestruct(owner); }
+    function kill() onlyOwner public { selfdestruct(payable(owner())); }
     
     //#endregion
     
