@@ -25,7 +25,7 @@ contract PaymentSplitter is Context {
     event PaymentReleased(address to, uint256 amount);
     event PaymentReceived(address from, uint256 amount);
 
-    uint256 private _totalShares;
+    uint256 internal _totalShares;
     uint256 private _totalReleased;
 
     mapping(address => uint256) private _shares;
@@ -42,7 +42,7 @@ contract PaymentSplitter is Context {
     constructor (address[] memory payees, uint256[] memory shares_) payable {
         // solhint-disable-next-line max-line-length
         require(payees.length == shares_.length, "PaymentSplitter: payees and shares length mismatch");
-        require(payees.length > 0, "PaymentSplitter: no payees");
+        //require(payees.length > 0, "PaymentSplitter: no payees");
 
         for (uint256 i = 0; i < payees.length; i++) {
             _addPayee(payees[i], shares_[i]);
