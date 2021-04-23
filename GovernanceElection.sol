@@ -52,7 +52,8 @@ contract GovernanceElection is Ownable {
     mapping(uint32 => Election) public elections;
 
     constructor(HarkGovernanceToken _token) {
-        require(_token.owner() == msg.sender);
+        //require(_token.owner() == msg.sender);
+        transferOwnership(_token.owner());
         token = _token;
     }
     
@@ -134,6 +135,7 @@ contract GovernanceElection is Ownable {
         elections[getElectionCount()].votes = new uint24[](_optionCount);
         elections[getElectionCount()].votesToken = new uint32[](_optionCount);
         elections[getElectionCount()].deadline = _deadline;
+        numElections += 1;
         return getElectionCount() - 1;
     }
     

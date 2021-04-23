@@ -43,6 +43,7 @@ contract HarkGovernanceToken is ERC20, PaymentSplitter {
     //#endregion
     
     
+    
     //#region --- DONATING ---
     
     // adds shares an address
