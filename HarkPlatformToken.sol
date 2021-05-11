@@ -146,6 +146,11 @@ contract HarkPlatformToken is Ownable, ERC20Pausable {
     
     // creates a new election & returns its id
     function createVote(uint _deadline) onlyOwner public returns(uint) {
+        uint _electId = getElectionCount() - 1;
+        if(!elections[_electId].winningsDisbursed) {
+            sendWinnings(_electId);
+        }
+
         elections[numElections].deadline = _deadline;
         numElections += 1;
         return getElectionCount() - 1;
