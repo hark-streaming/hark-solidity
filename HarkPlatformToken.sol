@@ -93,21 +93,24 @@ contract HarkPlatformToken is Ownable, ERC20Pausable {
     // returns the number of elections published so far
     function getElectionCount() public view returns(uint) { return numElections; }
     
+    // ensures that the election exists for the function
+    modifier electionExists(uint _electId) {
+        require(_electId < getElectionCount(), "Bad election ID.");
+        _;
+    }
+    
     // returns true if election has ended, false if not
-    function electionHasEnded(uint _electId) public view returns(bool) { 
-        require(_electId < numElections);
+    function electionHasEnded(uint _electId) electionExists(_electId) public view returns(bool) { 
         return elections[_electId].deadline < block.timestamp; 
     }
     
     // returns the number of options based on the election
-    function getNomineeCount(uint _electId) public view returns(uint32) {
-        require(_electId < getElectionCount());
+    function getNomineeCount(uint _electId) electionExists(_electId) public view returns(uint32) {
         return elections[_electId].nomineeCount;
     }
     
     // gets the number of tokens allocated per option
-    function getVotesToken(uint _electId, HarkGovernanceToken _token) public view returns(uint) {
-        require(_electId < getElectionCount());
+    function getVotesToken(uint _electId, HarkGovernanceToken _token) electionExists(_electId) public view returns(uint) {
         return elections[_electId].nominees[elections[_electId].ids[_token]].tokenVote;
     }
     
@@ -121,8 +124,7 @@ contract HarkPlatformToken is Ownable, ERC20Pausable {
     fallback () external { revert("Contract doesn't take gas directly."); }
     
     // adds or changes a user's vote in a specific election
-    function vote(HarkGovernanceToken _nominee, uint _electId) public {
-        require(_electId < getElectionCount(), "Bad election ID.");
+    function vote(HarkGovernanceToken _nominee, uint _electId) electionExists(_electId) public {
         require(elections[_electId].nominees[elections[_electId].ids[_nominee]].candidateHasBeenAdded, "Bad vote option.");
         require(!electionHasEnded(_electId), "Election has ended.");
 
@@ -146,18 +148,22 @@ contract HarkPlatformToken is Ownable, ERC20Pausable {
     
     // creates a new election & returns its id
     function createVote(uint _deadline) onlyOwner public returns(uint) {
-        uint _electId = getElectionCount() - 1;
-        if(!elections[_electId].winningsDisbursed) {
-            sendWinnings(_electId);
+        // sends winnings if they haven't been sent for the last election
+        if(getElectionCount() > 0) {
+            uint _electId = getElectionCount() - 1;
+            if(!elections[_electId].winningsDisbursed) {
+                sendWinnings(_electId);
+            }
         }
 
+        // creates new election
         elections[numElections].deadline = _deadline;
         numElections += 1;
         return getElectionCount() - 1;
     }
     
     // attempts to add a nominee to the options
-    function nominate(uint _electId, HarkGovernanceToken _nominee) public {
+    function nominate(uint _electId, HarkGovernanceToken _nominee) electionExists(_electId) public {
         require(_nominee.totalSupply() >= minimumSupplyForNomination);
         require(!electionHasEnded(_electId));
         require(!elections[_electId].nominees[elections[_electId].ids[_nominee]].candidateHasBeenAdded);
@@ -169,7 +175,7 @@ contract HarkPlatformToken is Ownable, ERC20Pausable {
     }
     
     // sends winnings to a certain election
-    function sendWinnings(uint _electId) onlyOwner public {
+    function sendWinnings(uint _electId) onlyOwner electionExists(_electId) public {
         require(electionHasEnded(_electId));
         require(!elections[_electId].winningsDisbursed);
         require(elections[_electId].nomineeCount > 0);
