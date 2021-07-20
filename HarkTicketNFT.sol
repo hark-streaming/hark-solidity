@@ -24,14 +24,14 @@ contract HarkTicketNFT is IERC721Metadata, ERC721Enumerable {
         nextTokenId++;
     }
 
-    function batchMint(address[] memory to) external returns(uint[] memory recentlyMintedTokenIds) {
+    // Lets the owner (Hark) generate multiple tickets for specific addresses. Returns the greatest minted token Id.
+    function batchMint(address[] memory to) external  returns(uint lastMintedTokenId) {
         require(msg.sender == owner, 'Only Hark can mint this for you.');
         for(uint i = 0; i < to.length; i++) {
-            recentlyMintedTokenIds[i] = nextTokenId;
-            _safeMint(to[i], recentlyMintedTokenIds[i]);
+            _safeMint(to[i], nextTokenId);
             nextTokenId++;
         }
-        return recentlyMintedTokenIds;
+        return nextTokenId - 1;
     }
     
     //#region Setters
